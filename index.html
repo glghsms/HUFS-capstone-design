@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>카테고리 네비게이션</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+    <style>
+      .category-table {
+          border-collapse: collapse;
+          width: 100%;
+          margin-bottom: 20px;
+          table-layout: fixed;
+      }
+      .category-table th, .category-table td {
+          border: 1px solid #ddd;
+          padding: 8px;
+          text-align: left;
+          vertical-align: top;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+      }
+      .category-table th {
+          background-color: #f2f2f2;
+          font-size: 14px;
+      }
+      .category-table td:first-child,
+      .category-table th:first-child {
+      width: 110px;         /* ← 원하는 폭으로 조절 가능 (기존보다 줄인 값) */
+      max-width: 150px;
+      white-space: normal;
+      }
+      .hidden-rows {
+          visibility: hidden;
+          opacity: 0;
+      }
+
+      .hidden-rows td {
+          color: transparent;      
+          border-color: transparent; 
+      }
+      .show {
+          visibility: visible;
+          opacity: 1;
+      }
+
+      .show td {
+          color: #000;
+          border-color: #ddd;
+      }
+      .ranking-table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+
+        .ranking-table th, .ranking-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .ranking-table th {
+            background-color: #f2f2f2;
+        }
+
+  </style>
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>카테고리 네비게이션 (버튼형)</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+  <style>
+    html, body {
+      height: 100%;
+      overflow-x: hidden;
+    }
+    .selected {
+      background-color: #60a5fa !important;
+      color: white !important;
+      background: linear-gradient(to right, #60a5fa, #3b82f6) !important;
+      color: white !important;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+      transform: scale(1.02);
+    }
+    button {
+      transition: all 0.2s ease-in-out;
+    }
+    .category-table button {
+      width: 100%;
+      text-align: left;
+      white-space: normal !important;
+      word-break: keep-all;
+      overflow-wrap: break-word;
+      text-align: center;
+      line-height: 1.25rem;
+      font-size: 0.85rem;
+    }
+    #category-details {
+      overflow: hidden;
+      transition: max-height 0.6s ease;
+    }
+    #category-details.collapsed {
+      max-height: 60px;
+    }
+    #category-details.expanded {
+      max-height: 3000px;
+    }
+  </style>
+</head>
+<!-- 상단 헤더 -->
+<div class="w-full bg-white shadow-md fixed top-0 z-50 flex items-center justify-center px-6 py-2 h-16 backdrop-blur-lg bg-opacity-90 transition duration-300">
+  <h1 class="text-base font-bold absolute left-1/2 transform -translate-x-1/2">🏛️저출산 정책 가이드</h1>
+  <button id="chatbot-button" class="fixed top-4 right-4 z-50 rounded-full bg-blue-500 text-white p-2 hover:bg-blue-600 transition duration-300">
+    💬
+  </button>
+</div>
+
+
+
+
+
+<!-- 대분류 셀과 겹치지 않도록 여백 추가 -->
+<div style="margin-top: 30px;"></div>
+
+<button id="toggle-sidebar" class="fixed top-4 left-4 z-50 bg-blue-500 text-white px-2 py-1 rounded shadow hover:bg-blue-600">
+  ☰
+</button>
+
+<!-- 사이드바 -->
+<div id="sidebar" class="fixed top-0 left-0 w-48 h-full bg-gray-50 shadow-lg z-40 pt-20 flex flex-col items-center transition-transform duration-300 transform translate-x-0">
+  <nav class="flex flex-col space-y-4 w-full px-4">
+    <button class="sidebar-btn active" data-section="positive-section">긍정순위 & 차트</button>
+    <button class="sidebar-btn" data-section="frequency-section">데이터수순위 & 차트</button>
+    <button class="sidebar-btn" data-section="emotion-section">세부감정비율</button>
+    <button class="sidebar-btn" data-section="wordcloud-section">워드클라우드</button>
+    <!--<button class="sidebar-btn", onclick="window.open('챗봇 페이지.html', '_blank')">챗봇 페이지</button>-->
+
+  </nav>
+</div>
+
+
+<style>
+.sidebar-btn {
+  padding: 0.75rem 1rem;
+  background: linear-gradient(to right, #f3f4f6, #e5e7eb);
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: transform 0.2s ease, background 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+.sidebar-btn:hover {
+  background: linear-gradient(to right, #60a5fa, #3b82f6);
+  color: white;
+  transform: translateX(4px) scale(1.03);
+}
+.sidebar-btn.active {
+  background: linear-gradient(to right, #2563eb, #1d4ed8);
+  color: white;
+  transform: scale(1.05);
+}
+
+
+.tab-btn {
+  padding: 0.5rem 1.25rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+  transition: all 0.3s ease;
+}
+.tab-btn:hover {
+  background-color: #3b82f6;
+  color: white;
+  transform: scale(1.03);
+}
+.tab-btn-active {
+  background-color: #3b82f6 !important;
+  color: white !important;
+}
+#positive-ranking li { 
+  line-height: 1.5rem;  
+  padding: 0.25rem 0;   
+  font-weight: 500;    
+  color: #1f2937;       
+}
+#frequency-ranking li { 
+  line-height: 1.5rem;  
+  padding: 0.25rem 0;   
+  font-weight: 500;    
+  color: #1f2937;       
+}
+</style>
+
+<body id="main-body" class="bg-gray-50 min-h-screen pl-48 transition-all duration-300">
+  <div class="container mx-auto py-6">
+
+
+    <div id="category-details" class="mt-4 collapsed"></div>
+
+    <div id="positive-section" class="section grid grid-cols-2 gap-3 mt-6">
+      <!-- 기본 보기 화면 (파이차트 + 순위) -->
+      <div id="positive-default-view" class="grid grid-cols-2 gap-4 col-span-2">
+        <!-- 순위 카드 -->
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-100 w-full h-[600px] flex flex-col">
+          <h2 class="text-base font-bold mb-4">긍정 비율 순위</h2>
+          <div class="overflow-y-auto flex-grow">
+          <ol id="positive-ranking" class="list-decimal list-outside pl-7 text-sm space-y-1"></ol>
+          </div>
+        </div>
+        <!-- 파이차트 카드 -->
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-100 w-full h-[600px] flex items-center justify-center">
+          <canvas id="positivePieChart" class="w-full h-full"></canvas>
+        </div>
+      </div>
+      <!-- 막대그래프 화면 -->
+      <div id="positive-bar-view" class="hidden bg-white shadow rounded p-4 col-span-2">
+        <h2 class="text-base font-bold mb-3">📋선택된 항목의 긍정 비율
+          <span>
+              <button id="sort-pos-asc" class="ml-2 px-2 py-1 text-xs bg-gray-200 rounded hover:bg-blue-500 hover:text-white">▼</button>
+              <button id="sort-pos-desc" class="ml-1 px-2 py-1 text-xs bg-gray-200 rounded hover:bg-blue-500 hover:text-white">▲</button>
+          </span>
+        </h2>
+        <div class="h-[600px]">
+          <canvas id="positiveBarChart" class="w-full h-full"></canvas>
+        </div>
+      </div>
+
+      <!-- 버튼 하단 고정 -->
+      <div class="col-span-2 flex justify-center gap-4 sticky bottom-2 bg-white/90 backdrop-blur-md py-3 px-6 rounded-xl shadow-md z-30 transition-all">
+        <button id="view-default" class="bg-blue-500 text-white px-5 py-2 rounded-full text-sm shadow hover:bg-blue-600 transition duration-300">파이차트</button>
+        <button id="view-bar" class="bg-gray-200 text-gray-700 px-5 py-2 rounded-full text-sm shadow hover:bg-gray-300 transition duration-300">막대그래프</button>
+      </div>
+      <div class="col-span-2 mt-6 bg-white rounded-2xl shadow-md p-6 border border-gray-200">
+        <h2 class="text-base font-bold mb-3">🧠 AI 요약</h2>
+        <div class="text-sm text-gray-700">
+          <p class="text-gray-500" id="ai-summary-content">선택된 항목의 요약 내용이 여기에 표시됩니다.</p>
+        </div>
+      </div>
+      <div>
+        <ul id="positiveRankingList"></ul>
+        <canvas id="positivePieChart" width="400" height="400" class="w-full h-full"></canvas>
+      </div>
+
+    </div>
+    <div id="frequency-section" class="section hidden grid grid-cols-2 gap-3 mt-6">
+      <div id="frequency-default-view" class="grid grid-cols-2 gap-4 col-span-2">
+        <!-- 순위 카드 -->
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-100 w-full h-[600px] flex flex-col">
+          <h2 class="text-base font-bold mb-4">데이터수 순위</h2>
+          <div class="overflow-y-auto flex-grow">
+          <ol id="frequency-ranking" class="list-decimal list-outside pl-7 text-sm space-y-1"></ol>
+          </div>
+        </div>
+        <!-- 파이차트 카드 -->
+        <div class="bg-white rounded-2xl p-6 shadow-md border border-gray-100 w-full h-[600px] flex items-center justify-center">
+          <canvas id="frequencyPieChart" class="w-full h-full"></canvas>
+        </div>
+      </div>
+      <!-- 막대그래프 화면 -->
+      <div id="frequency-bar-view" class="hidden bg-white shadow rounded p-4 col-span-2">
+        <h2 class="text-base font-bold mb-3">📋선택된 항목의 빈도수
+          <span>
+              <button id="sort-freq-asc" class="ml-2 px-2 py-1 text-xs bg-gray-200 rounded hover:bg-blue-500 hover:text-white">▼</button>
+              <button id="sort-freq-desc" class="ml-1 px-2 py-1 text-xs bg-gray-200 rounded hover:bg-blue-500 hover:text-white">▲</button>
+          </span>
+        </h2>
+        <div class="h-[600px]">
+          <canvas id="frequencyBarChart" class="w-full h-full"></canvas>
+        </div>
+      </div>
+
+      <!-- 버튼 하단 고정 -->
+      <div class="col-span-2 flex justify-center gap-4 sticky bottom-2 bg-white/90 backdrop-blur-md py-3 px-6 rounded-xl shadow-md z-30 transition-all">
+        <button id="f-view-default" class="bg-blue-500 text-white px-5 py-2 rounded-full text-sm shadow hover:bg-blue-600 transition duration-300">파이차트</button>
+        <button id="f-view-bar" class="bg-gray-200 text-gray-700 px-5 py-2 rounded-full text-sm shadow hover:bg-gray-300 transition duration-300">막대그래프</button>
+      </div>
+      <div class="col-span-2 mt-6 bg-white rounded-2xl shadow-md p-6 border border-gray-200">
+        <h2 class="text-base font-bold mb-3">🧠 AI 요약</h2>
+        <div class="text-sm text-gray-700">
+          <p class="text-gray-500" id="ai-summary-content">선택된 항목의 요약 내용이 여기에 표시됩니다.</p>
+        </div>
+      </div>
+      <div>
+        <ul id="positiveRankingList"></ul>
+        <canvas id="positivePieChart" width="400" height="400" class="w-full h-full"></canvas>
+      </div>
+    </div>
+
+
+    <div id="emotion-section" class="section bg-white shadow rounded p-3 hidden">
+      <div class="flex justify-between items-center mb-2">
+        <h2 class="text-base font-bold">세부 감정 비율</h2>
+        <div class="space-x-2">
+        </div>
+      </div>
+      <div id="emotion-bar-chart" class="space-y-4 text-sm"></div>
+      <div class="col-span-2 mt-6 bg-white rounded-2xl shadow-md p-6 border border-gray-200">
+        <h2 class="text-base font-bold mb-3">🧠 AI 요약</h2>
+        <div class="text-sm text-gray-700">
+          <p class="text-gray-500" id="ai-summary-content">선택된 항목의 요약 내용이 여기에 표시됩니다.</p>
+        </div>
+      </div>
+    </div>
+    <!-- 세부 감정별 순위 보기 (짜증남, 슬픔, 설레는, 즐거운) -->
+    <div id="emotion-rank-section" class="section hidden grid grid-cols-2 gap-4 mt-6">
+    <div class="bg-white rounded-xl shadow p-4 col-span-2">
+        <h2 class="text-base font-bold mb-4">세부 감정별 소분류 순위</h2>
+        <div id="emotion-rank-lists" class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm"></div>
+      <div class="col-span-2 mt-6 bg-white rounded-2xl shadow-md p-6 border border-gray-200">
+        <h2 class="text-base font-bold mb-3">🧠 AI 요약</h2>
+        <div class="text-sm text-gray-700">
+          <p class="text-gray-500" id="ai-summary-content">선택된 항목의 요약 내용이 여기에 표시됩니다.</p>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <div id="wordcloud-section" class="section mt-6 bg-white shadow rounded p-3 hidden">
+      <h2 class="text-base font-bold mb-3">워드클라우드</h2>
+      <div id="wordcloud-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+      <div class="col-span-2 mt-6 bg-white rounded-2xl shadow-md p-6 border border-gray-200">
+        <h2 class="text-base font-bold mb-3">🧠 AI 요약</h2>
+        <div class="text-sm text-gray-700">
+          <p class="text-gray-500" id="ai-summary-content">선택된 항목의 요약 내용이 여기에 표시됩니다.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+
+
+
+<script>
+document.querySelectorAll('.sidebar-btn').forEach(button => {
+  button.addEventListener('click', () => {
+    document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
+    button.classList.add('active');
+
+    const sectionId = button.dataset.section;
+
+
+    document.querySelectorAll('.section').forEach(section => {
+      section.classList.add('hidden');
+    });
+
+    // 선택된 section만 잠시 표시 (차트 사이즈 문제 방지용)
+    const selectedSection = document.getElementById(sectionId);
+    selectedSection.classList.remove('hidden');
+
+    // Chart.js 리사이즈를 위해 잠시 기다렸다 다시 재생성
+    setTimeout(() => {
+      if (sectionId === 'positive-section') {
+        updateRankings();  // 파이차트 다시 생성 포함됨
+      } else if (sectionId === 'frequency-section') {
+        updateRankings();  // 이 함수도 frequency 파이차트 포함함
+      }
+    }, 100);
+
+   });
+});
+
+
+
+</script>
+
+<script>
+  const sidebar = document.getElementById('sidebar');
+  const mainBody = document.getElementById('main-body');
+  const toggleButton = document.getElementById('toggle-sidebar');
+
+  let isSidebarOpen = true;
+
+  toggleButton.addEventListener('click', () => {
+    isSidebarOpen = !isSidebarOpen;
+
+    if (isSidebarOpen) {
+      sidebar.classList.remove('-translate-x-full');
+      sidebar.classList.add('translate-x-0');
+      mainBody.classList.add('pl-48');
+    } else {
+      sidebar.classList.remove('translate-x-0');
+      sidebar.classList.add('-translate-x-full');
+      mainBody.classList.remove('pl-48');
+    }
+  });
+</script>
+
+
+  
+  <!-- 챗봇 창 -->
+  <div id="chatbot-window" class="fixed bottom-20 right-6 w-96 h-[450px] bg-white shadow-2xl border border-gray-200 rounded-2xl p-5 hidden z-50 transition-all transform scale-95 hover:scale-100">
+    <div class="flex justify-between items-center mb-2">
+      <h2 class="text-base font-semibold">정책 상담 챗봇</h2>
+      <button id="close-chatbot" class="text-gray-500 hover:text-gray-800">✖</button>
+    </div>
+
+    <!-- ✅ 채팅 내용 표시 영역 (id="chat" 추가됨) -->
+    <div id="chat" class="h-64 overflow-y-auto border p-2 rounded text-sm text-gray-700 bg-gray-50 space-y-1">
+      <div class="bot">안녕하세요! 궁금한 정책을 입력해 주세요 😊</div>
+    </div>
+
+    <!-- 입력 + 전송 -->
+    <div class="flex gap-2 mt-3">
+      <input id="chatbot-input" type="text"
+            class="flex-1 p-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            placeholder="메시지를 입력하세요...">
+      <button id="chatbot-send"
+              class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm">
+        전송
+      </button>
+    </div>
+  </div>
+
+
+
+
+  <script>
+    const categoryMapping = {
+      "결혼": {
+        "비용": ["혼인증여세", "출산증여세"],
+        "주거": ["신혼부부주택공급", "신혼부부주택대출"]
+      },
+      "임신": {
+        "건강비용": ["난임시술비지원", "냉동난자", "임신기근로단축", "필수가임력검사비용지원", "난임치료휴가", "임신출산진료비바우처"]
+      },
+      "출산": {
+        "비용": ["자녀세액공제", "첫만남이용권", "산후조리비용세액공제"],
+        "주거": ["신생아출산가구주택대출", "출산가구주택공급"],
+        "건강": ["신생아산모건강관리", "배우자출산휴가", "출산전후휴가"],
+        "돌봄": ["산후조리도우미지원"]
+      },
+
+      "영유아": {
+        "비용": ["아동수당", "자녀장려금확대", "부모급여", "디딤씨앗통장"],
+        "돌봄": ["가정양육수당", "시간제보육", "육아기근로시간단축", "아이돌봄서비스", "가족돌봄휴가", "유보통합", "육아휴직"],
+        "주거": ["다자녀특별공급", "공공분양임대소득자산요건완화"]
+      },
+      "초등": {
+        "돌봄": ["초등늘봄학교"],
+        "비용": ["초등자녀세액공제", "다자녀가구초중고교육비지원확대"]
+      }
+    };
+
+    const categoryDetails = document.getElementById('category-details');
+    const positiveRankingList = document.getElementById('positive-ranking');
+    const frequencyRankingList = document.getElementById('frequency-ranking');
+
+    function expandTable() {
+      categoryDetails.classList.remove('collapsed');
+      categoryDetails.classList.add('expanded');
+    }
+
+    function collapseTable() {
+      categoryDetails.classList.remove('expanded');
+      categoryDetails.classList.add('collapsed');
+    }
+
+    function createButton(text, onClick, isLeaf = false) {
+      const btn = document.createElement('button');
+      btn.textContent = text;
+      btn.className = 'px-3 py-2 w-full rounded-xl text-sm font-medium bg-white shadow-sm border border-gray-200 hover:bg-blue-50 hover:shadow-md transition-all duration-200';
+      btn.dataset.isLeaf = isLeaf;
+      btn.onclick = () => {
+        const isSelected = btn.classList.toggle('selected');
+        onClick(isSelected);
+        fetchEmotionSummary();
+        fetchEmotionDetailData();
+        updateRankings();
+        updateWordcloudImage();
+        updateEmotionBars();
+        updateBarGraphFromSelection();
+        updateFreqBarGraph();
+        fetchAISummary();  // ✅ 요약 추가
+
+      };
+      return btn;
+    }
+
+    let emotionData = {}; // 서버에서 가져온 데이터를 저장할 변수
+
+    function fetchEmotionSummary() {
+      const selectedLeafs = Array.from(document.querySelectorAll('button.selected[data-is-leaf="true"]'))
+       .map(btn => btn.textContent);
+
+      fetch('http://localhost:5000/api/emotion-summary', {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/json'
+    },
+       body: JSON.stringify({ selected: selectedLeafs }) // ✅ selected 항목 추가
+  })
+       .then(response => response.json())
+       .then(data => {
+         emotionData = data;
+         updateRankings(); // 받아온 데이터로 순위 다시 그리기
+    })
+       .catch(error => {
+         console.error("Error fetching emotion summary:", error);
+    });
+}
+
+
+
+    // 긍정 비율을 API 데이터에서 가져오는 함수
+    function getPositiveRate(item) {
+      const categoryData = emotionData[item];
+      if (!categoryData) return 0; // 데이터가 없으면 0 반환
+
+      const total = categoryData.positive + categoryData.negative + categoryData.neutral;
+      return total ? categoryData.positive / total : 0; // 긍정 비율 계산
+    }
+
+    // 빈도율을 API 데이터에서 가져오는 함수
+    function getFrequencyRate(item) {
+      const categoryData = emotionData[item];
+      if (!categoryData) return 0; // 데이터가 없으면 0 반환
+
+      return categoryData.positive + categoryData.negative + categoryData.neutral; // 빈도 계산
+    }
+
+    function updateRankings() {
+    const selectedLeafs = Array.from(document.querySelectorAll('button.selected[data-is-leaf="true"]'))
+      .map(btn => btn.textContent);
+
+    const rankedPositive = selectedLeafs
+      .map(text => ({ text, score: getPositiveRate(text) }))
+      .sort((a, b) => b.score - a.score);
+
+    const rankedFreq = selectedLeafs
+      .map(text => ({ text, score: getFrequencyRate(text) }))
+      .sort((a, b) => b.score - a.score);
+
+    // 전체 긍정 순위 계산을 위한 정렬
+    const allCategories = Object.keys(emotionData);
+    const allPositiveRank = allCategories
+      .map(text => ({ text, score: getPositiveRate(text) }))
+      .sort((a, b) => b.score - a.score);
+
+    const positiveRankMap = {};
+    allPositiveRank.forEach((item, idx) => {
+      positiveRankMap[item.text] = idx + 1; // 전체 순위 매핑
+    });
+
+    // 긍정 비율 순위 업데이트
+    positiveRankingList.innerHTML = '';
+    rankedPositive.forEach(item => {
+    const li = document.createElement('li');
+    const overallRank = positiveRankMap[item.text] || '-';
+    li.textContent = `${item.text} (전체 ${overallRank}위)`;
+    positiveRankingList.appendChild(li);
+    });
+
+    // 전체 빈도 순위 계산
+    const allFrequencyRank = allCategories
+      .map(text => ({ text, score: getFrequencyRate(text) }))
+      .sort((a, b) => b.score - a.score);
+
+    const frequencyRankMap = {};
+    allFrequencyRank.forEach((item, idx) => {
+      frequencyRankMap[item.text] = idx + 1;
+    });
+
+
+
+    // 빈도 순위 출력
+    frequencyRankingList.innerHTML = '';
+    rankedFreq.forEach((item, idx) => {
+      const overallRank = frequencyRankMap[item.text] || '-';
+      const li = document.createElement('li');
+      li.textContent = `${item.text} (전체 ${overallRank}위)`;
+      frequencyRankingList.appendChild(li);
+    });
+
+  
+    // 기존 positivePieChart, frequencyPieChart 파괴 후 새로 그리기
+    if (window.positiveChart) window.positiveChart.destroy();
+    if (window.frequencyChart) window.frequencyChart.destroy();
+
+    // 선택된 항목 기준 파이차트 데이터 준비
+    const positiveLabels = rankedPositive.map(item => item.text);
+    const positiveData = rankedPositive.map(item => item.score);
+
+    const frequencyLabels = rankedFreq.map(item => item.text);
+    const frequencyData = rankedFreq.map(item => item.score);
+    
+    // 긍정 파이차트
+    const positiveCanvas = document.getElementById('positivePieChart');
+    const positiveCtx = positiveCanvas.getContext('2d');
+    window.positiveChart = new Chart(positiveCtx, {
+      type: 'pie',
+      data: {
+        labels: positiveLabels,
+        datasets: [{
+          label: '긍정 비율',
+          data: positiveData,
+          backgroundColor: positiveLabels.map(() => `hsl(${Math.random() * 360}, 70%, 60%)`),
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          title: {
+            display: true,
+            text: '선택된 항목의 긍정 비율'
+          }
+        }
+      }
+    });
+
+
+
+
+    // 빈도 파이차트
+    const frequencyCtx = document.getElementById('frequencyPieChart').getContext('2d');
+    window.frequencyChart = new Chart(frequencyCtx, {
+      type: 'pie',
+      data: {
+        labels: frequencyLabels,
+        datasets: [{
+          label: '데이터 수',
+          data: frequencyData,
+          backgroundColor: frequencyLabels.map(() => `hsl(${Math.random() * 360}, 70%, 60%)`),
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: '선택된 항목의 데이터 수'
+          }
+        }
+      }
+    });
+
+
+}
+
+  // 선택된 소분류로 막대그래프 갱신
+    function updateBarGraphFromSelection() {
+    const selectedLeafs = Array.from(document.querySelectorAll('button.selected[data-is-leaf="true"]'))
+        .map(btn => btn.textContent.trim());
+
+    const wrapper = document.getElementById('positive-bar-view');
+
+    if (selectedLeafs.length === 0) {
+        if (window.positiveBarChart) {
+        window.positiveBarChart.destroy();
+        window.positiveBarChart = null;
+        }
+        wrapper.classList.add('hidden');
+        return;
+    }
+
+
+    // ✅ 소스 사용량 집계 후 많이 나온 순서대로 정렬
+    const sourceUsage = {};
+    selectedLeafs.forEach(item => {
+        const entry = emotionData[item];
+        const sources = entry?.sources ?? {};
+        Object.entries(sources).forEach(([source, count]) => {
+        sourceUsage[source] = (sourceUsage[source] || 0) + count;
+        });
+    });
+    selectedLeafs.sort((a, b) => {
+    const aRate = getPositiveRate(a);
+    const bRate = getPositiveRate(b);
+    return window.barSortDirection.positive === 'asc' ? aRate - bRate : bRate - aRate;
+    });
+    const sourceList = Object.entries(sourceUsage)
+        .sort((a, b) => b[1] - a[1])
+        .map(([source]) => source);
+
+    // ✅ 고정된 색상 팔레트
+    const sourceColors = [
+     '#007AC1','#00CFFF', '#E0E0E0', '#2F4D6F'  
+    ];
+
+    // ✅ 누적 막대용 datasets 생성
+    let datasets = sourceList.map((source, index) => {
+    return {
+        label: source,
+        stack: '긍정비율', // ✅ 공통 스택 이름
+        order: sourceList.length - index, // ✅ 많이 쓴 소스일수록 더 큰 order로 → 위에 쌓임
+        data: selectedLeafs.map(item => {
+        const entry = emotionData[item];
+        const total = (entry?.positive ?? 0) + (entry?.negative ?? 0) + (entry?.neutral ?? 0);
+        const sourceCount = entry?.sources?.[source] ?? 0;
+        return total ? ((sourceCount / total) * getPositiveRate(item) * 100).toFixed(2) : 0;
+        }),
+        backgroundColor: sourceColors[index % sourceColors.length]
+    };
+    });
+    const canvas = document.getElementById('positiveBarChart');
+    const ctx = canvas.getContext('2d');
+
+    if (window.positiveBarChart) window.positiveBarChart.destroy();
+
+    window.positiveBarChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+        labels: selectedLeafs,
+        datasets: datasets
+        },
+        options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            tooltip: {
+            mode: 'index',
+            intersect: false
+            },
+            legend: {
+            position: 'top'
+            }
+        },
+        scales: {
+            x: {
+            stacked: true,
+            ticks: { autoSkip: false }
+            },
+            y: {
+            stacked: true,
+            beginAtZero: true,
+            max: 30,
+            title: {
+                display: true,
+                text: '긍정 비율 (%) - 소스 분할'
+            }
+            }
+        }
+        }
+    });
+    const barIsSelected = document.getElementById('view-bar').classList.contains('tab-btn-active');
+    if (barIsSelected && wrapper.classList.contains('hidden')) {
+      wrapper.classList.remove('hidden');
+      document.getElementById('positive-default-view').classList.add('hidden');
+    }
+    }
+
+
+
+    function updateFreqBarGraph() {
+    const selectedLeafs = Array.from(document.querySelectorAll('button.selected[data-is-leaf="true"]'))
+        .map(btn => btn.textContent.trim());
+
+    const wrapper = document.getElementById('frequency-bar-view');
+
+    if (selectedLeafs.length === 0) {
+        if (window.frequencyBarChart) {
+        window.frequencyBarChart.destroy();
+        window.frequencyBarChart = null;
+        }
+        wrapper.classList.add('hidden');
+        return;
+    }
+
+
+    // ✅ 소스 사용량 집계 후 많이 나온 순서대로 정렬
+    const sourceUsage = {};
+    selectedLeafs.forEach(item => {
+        const entry = emotionData[item];
+        const sources = entry?.sources ?? {};
+        Object.entries(sources).forEach(([source, count]) => {
+        sourceUsage[source] = (sourceUsage[source] || 0) + count;
+        });
+    });
+    selectedLeafs.sort((a, b) => {
+    const aRate = getFrequencyRate(a);
+    const bRate = getFrequencyRate(b);
+    return window.barSortDirection.frequency === 'asc' ? aRate - bRate : bRate - aRate;
+    });
+    const sourceList = Object.entries(sourceUsage)
+        .sort((a, b) => b[1] - a[1])
+        .map(([source]) => source);
+
+    // ✅ 고정된 색상 팔레트
+    const sourceColors = [
+     '#007AC1','#00CFFF', '#E0E0E0', '#2F4D6F'  
+    ];
+
+    // ✅ 누적 막대용 datasets 생성
+    let datasets = sourceList.map((source, index) => {
+    return {
+        label: source,
+        stack: '데이터수비율', // ✅ 공통 스택 이름
+        order: sourceList.length - index, // ✅ 많이 쓴 소스일수록 더 큰 order로 → 위에 쌓임
+        data: selectedLeafs.map(item => {
+        const entry = emotionData[item];
+        const total = (entry?.positive ?? 0) + (entry?.negative ?? 0) + (entry?.neutral ?? 0);
+        const sourceCount = entry?.sources?.[source] ?? 0;
+        return sourceCount;
+        }),
+        backgroundColor: sourceColors[index % sourceColors.length]
+    };
+    });
+    const canvas = document.getElementById('frequencyBarChart');
+    const ctx = canvas.getContext('2d');
+
+    if (window.frequencyBarChart) window.frequencyBarChart.destroy();
+
+    window.frequencyBarChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+        labels: selectedLeafs,
+        datasets: datasets
+        },
+        options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            tooltip: {
+            mode: 'index',
+            intersect: false
+            },
+            legend: {
+            position: 'top'
+            }
+        },
+        scales: {
+            x: {
+            stacked: true,
+            ticks: { autoSkip: false }
+            },
+            y: {
+            stacked: true,
+            beginAtZero: true,
+            max: 21000,
+            title: {
+                display: true,
+                text: '데이터수 - 소스 분할'
+            }
+            }
+        }
+        }
+    });
+    const freqBarIsSelected = document.getElementById('f-view-bar').classList.contains('tab-btn-active');
+    if (freqBarIsSelected && wrapper.classList.contains('hidden')) {
+      wrapper.classList.remove('hidden');
+      document.getElementById('frequency-default-view').classList.add('hidden');
+    }
+    }
+
+
+
+    // 페이지가 로드되면 데이터를 가져오는 함수 호출
+    window.onload = fetchEmotionSummary;
+
+
+
+    function createCategoryTable() {
+      const table = document.createElement('table');
+      table.classList.add('category-table', 'table-fixed', 'w-full');
+
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+
+      const blankTh = document.createElement('th');
+      headerRow.appendChild(blankTh);
+
+      Object.keys(categoryMapping).forEach(mainCategory => {
+        const th = document.createElement('th');
+        const mainBtn = createButton(mainCategory, (selecting) => {
+          Object.keys(categoryMapping[mainCategory]).forEach(sub => {
+            categoryMapping[mainCategory][sub].forEach(value => {
+              const el = document.querySelector(`button[data-main='${mainCategory}'][data-sub='${sub}'][data-value='${value}']`);
+              if (el) el.classList.toggle('selected', selecting);
+            });
+          });
+        }, false);
+        mainBtn.onmouseenter = expandTable;
+        th.appendChild(mainBtn);
+        headerRow.appendChild(th);
+      });
+
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      table.appendChild(tbody);
+
+      const allSubCategories = new Set();
+      Object.values(categoryMapping).forEach(subCategoryMap => {
+        Object.keys(subCategoryMap).forEach(subCategory => {
+          allSubCategories.add(subCategory);
+        });
+      });
+
+      allSubCategories.forEach(subCategory => {
+        const maxRows = Math.max(...Object.values(categoryMapping).map(subCategoryMap => (subCategoryMap[subCategory] || []).length));
+
+        for (let i = 0; i < maxRows; i++) {
+          const row = document.createElement('tr');
+
+          if (i === 0) {
+            const subCategoryTd = document.createElement('td');
+            const subBtn = createButton(subCategory, (selecting) => {
+              document.querySelectorAll(`button[data-sub='${subCategory}'][data-is-leaf='true']`).forEach(el => {
+                el.classList.toggle('selected', selecting);
+              });
+            }, false);
+            subCategoryTd.rowSpan = maxRows;
+            subCategoryTd.appendChild(subBtn);
+            row.appendChild(subCategoryTd);
+          }
+
+          Object.keys(categoryMapping).forEach(mainCategory => {
+            const cell = document.createElement('td');
+            const items = categoryMapping[mainCategory][subCategory] || [];
+            const value = items[i];
+            if (value) {
+              const btn = createButton(value, () => {}, true);
+              btn.setAttribute('data-main', mainCategory);
+              btn.setAttribute('data-sub', subCategory);
+              btn.setAttribute('data-value', value);
+              cell.appendChild(btn);
+            }
+            row.appendChild(cell);
+          });
+
+          tbody.appendChild(row);
+        }
+      });
+
+      return table;
+    }
+
+    categoryDetails.appendChild(createCategoryTable());
+    categoryDetails.onmouseleave = collapseTable;
+    const chatButton = document.getElementById('chatbot-button');
+    const chatbotWindow = document.getElementById('chatbot-window');
+    const closeChatbot = document.getElementById('close-chatbot');
+
+    chatButton.addEventListener('click', () => {
+        chatbotWindow.classList.toggle('hidden');
+    });
+
+    closeChatbot.addEventListener('click', () => {
+        chatbotWindow.classList.add('hidden');
+    });
+
+  </script>
+
+
+<script>
+  // ✅ 워드클라우드 표시
+    function updateWordcloudImage() {
+      const selectedLeafs = Array.from(document.querySelectorAll('button.selected[data-is-leaf="true"]'))
+      .map(btn => btn.textContent.trim());
+      
+      const container = document.getElementById("wordcloud-container");
+      container.innerHTML = "";
+
+      if (selectedLeafs.length === 0) return;
+
+      selectedLeafs.forEach(subcategory => {
+        const encoded = encodeURIComponent(subcategory);
+        const url = `http://localhost:5000/wordcloud/${encoded}`;
+
+        const card = document.createElement("div");
+        card.className = "bg-white border border-gray-200 rounded-xl shadow-md p-4 hover:shadow-lg transition";
+
+        const title = document.createElement("h3");
+        title.textContent = subcategory;
+        title.className = "font-bold text-center text-gray-700 text-base mb-3";
+
+        const img = document.createElement("img");
+        img.src = url;
+        img.alt = `워드클라우드 - ${subcategory}`;
+        img.className = "w-full h-auto rounded object-contain";
+        img.onerror = () => img.src = 'https://via.placeholder.com/400x300?text=이미지+없음';
+
+        card.appendChild(title);
+        card.appendChild(img);
+        container.appendChild(card);
+      });
+    }
+
+    function createButton(text, onClick, isLeaf = false) {
+      const btn = document.createElement('button');
+      btn.textContent = text;
+      btn.className = 'p-2 border border-gray-300 rounded hover:bg-blue-100 w-full';
+      btn.dataset.isLeaf = isLeaf;
+      btn.onclick = () => {
+        const isSelected = btn.classList.toggle('selected');
+        onClick(isSelected);
+        fetchEmotionSummary();
+        updateRankings();
+        updateWordcloudImage();
+      };
+      return btn;
+    }
+
+ // 세부감정비율 시작
+    const emotionTypes = [
+        "슬픔(우울한)", "짜증남", "걱정스러운(불안한)", "힘듦(지침)", "일상적인", "생각이 많은",
+        "설레는(기대하는)", "기쁨(행복한)", "고마운", "사랑하는", "즐거운(신나는)"
+    ];
+    const emotionColors = [
+        '#4B5563', '#9CA3AF', '#4E79A7', '#FBBF24', '#34D399', '#60A5FA',
+        '#A78BFA', '#F472B6', '#FCD34D', '#F87171', '#10B981'
+    ];
+    emotionData = {};
+    
+    function updateEmotionBars() {
+      const container = document.getElementById("emotion-bar-chart");
+      container.innerHTML = "";
+
+      const selectedLeafs = Array.from(document.querySelectorAll('button.selected[data-is-leaf="true"]'))
+        .map(btn => btn.textContent.trim());
+
+      if (selectedLeafs.length === 0) return;
+
+      selectedLeafs.forEach(subcategory => {
+        const emotionCounts = emotionData[subcategory + "_raw"] || {};
+        const total = Object.values(emotionCounts).reduce((sum, val) => sum + val, 0) || 1;
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "p-4 mb-4 rounded-xl shadow border bg-white";
+
+        const label = document.createElement("div");
+        label.textContent = subcategory;
+        label.className = "font-bold text-gray-800 text-sm mb-3";
+        wrapper.appendChild(label);
+
+        const barRow = document.createElement("div");
+        barRow.className = "flex h-6 w-full overflow-hidden rounded-lg bg-gray-100 text-xs font-medium";
+
+        // 감정을 많이 나온 순으로 정렬
+        const sortDirection = window.emotionSortDirection || 'desc';
+        const sortedEmotions = Object.entries(emotionCounts)
+          .filter(([_, count]) => count > 0)
+          .sort((a, b) => sortDirection === 'asc' ? a[1] - b[1] : b[1] - a[1]);
+
+        sortedEmotions.forEach(([emotion, count]) => {
+          const percent = (count / total * 100).toFixed(1);
+          const index = emotionTypes.indexOf(emotion);
+
+          const segment = document.createElement("div");
+          segment.style.width = percent + "%";
+          segment.style.backgroundColor = emotionColors[index % emotionColors.length];
+          segment.className = "flex items-center justify-center text-white text-[10px] whitespace-nowrap";
+          segment.textContent = percent >= 10 ? `${percent}%` : ""; 
+          segment.title = `${emotion}: ${percent}%`;  // ✅ 툴팁 추가
+          barRow.appendChild(segment);
+        });
+
+        wrapper.appendChild(barRow);
+
+        const legend = document.createElement("div");
+        legend.className = "flex flex-wrap mt-3 text-xs text-gray-600 gap-x-3 gap-y-1";
+
+        sortedEmotions.forEach(([emotion, _]) => {
+          const index = emotionTypes.indexOf(emotion);
+          const item = document.createElement("div");
+          item.className = "flex items-center space-x-1";
+
+          const colorBox = document.createElement("span");
+          colorBox.className = "w-2.5 h-2.5 inline-block rounded-sm";
+          colorBox.style.backgroundColor = emotionColors[index % emotionColors.length];
+
+          const name = document.createElement("span");
+          name.textContent = emotion;
+
+          item.appendChild(colorBox);
+          item.appendChild(name);
+          legend.appendChild(item);
+        });
+
+        wrapper.appendChild(legend);
+        container.appendChild(wrapper);
+      });
+    }
+
+
+  async function fetchEmotionDetailData() {
+    const response = await fetch('http://127.0.0.1:5000/api/emotion-detail', {
+        method: 'POST'
+      });
+    const data = await response.json();
+
+    Object.entries(data).forEach(([subcategory, emotions]) => {
+      emotionData[subcategory + "_raw"] = emotions;
+    });
+
+    updateEmotionBars();
+}
+
+    window.barSortDirection = {
+    positive: 'desc',  // 기본: 내림차순
+    frequency: 'desc'
+    };
+
+    // ✅ 페이지 로드 시 실행
+    document.addEventListener("DOMContentLoaded", fetchEmotionDetailData);
+    
+    window.positiveBarChart = null;
+    // 버튼 전환 처리 (기본 보기 vs 막대그래프 보기)
+    document.getElementById('view-default').addEventListener('click', () => {
+      document.getElementById('positive-default-view').classList.remove('hidden');
+      document.getElementById('positive-bar-view').classList.add('hidden');
+
+      document.getElementById('view-default').classList.add('bg-blue-500', 'text-white');
+      document.getElementById('view-default').classList.remove('bg-gray-300', 'text-gray-800');
+      document.getElementById('view-bar').classList.remove('bg-blue-500', 'text-white');
+      document.getElementById('view-bar').classList.add('bg-gray-300', 'text-gray-800');
+      document.getElementById('view-default').classList.add('tab-btn-active');
+      document.getElementById('view-bar').classList.remove('tab-btn-active');
+    });
+
+    document.getElementById('view-bar').addEventListener('click', () => {
+      document.getElementById('positive-default-view').classList.add('hidden');
+      document.getElementById('positive-bar-view').classList.remove('hidden');
+
+      document.getElementById('view-bar').classList.add('bg-blue-500', 'text-white');
+      document.getElementById('view-bar').classList.remove('bg-gray-300', 'text-gray-800');
+      document.getElementById('view-default').classList.remove('bg-blue-500', 'text-white');
+      document.getElementById('view-default').classList.add('bg-gray-300', 'text-gray-800');
+      document.getElementById('view-bar').classList.add('tab-btn-active');
+      document.getElementById('view-default').classList.remove('tab-btn-active');
+      updateBarGraphFromSelection();     
+
+    });
+
+
+    document.addEventListener("DOMContentLoaded", fetchEmotionDetailData);
+
+    window.frequencyBarChart = null;
+    // 버튼 전환 처리 (기본 보기 vs 막대그래프 보기)
+    document.getElementById('f-view-default').addEventListener('click', () => {
+      document.getElementById('frequency-default-view').classList.remove('hidden');
+      document.getElementById('frequency-bar-view').classList.add('hidden');
+
+      document.getElementById('f-view-default').classList.add('bg-blue-500', 'text-white');
+      document.getElementById('f-view-default').classList.remove('bg-gray-300', 'text-gray-800');
+      document.getElementById('f-view-bar').classList.remove('bg-blue-500', 'text-white');
+      document.getElementById('f-view-bar').classList.add('bg-gray-300', 'text-gray-800');
+      document.getElementById('f-view-default').classList.add('tab-btn-active');
+      document.getElementById('f-view-bar').classList.remove('tab-btn-active');
+    });
+
+    document.getElementById('f-view-bar').addEventListener('click', () => {
+      document.getElementById('frequency-default-view').classList.add('hidden');
+      document.getElementById('frequency-bar-view').classList.remove('hidden');
+
+      document.getElementById('f-view-bar').classList.add('bg-blue-500', 'text-white');
+      document.getElementById('f-view-bar').classList.remove('bg-gray-300', 'text-gray-800');
+      document.getElementById('f-view-default').classList.remove('bg-blue-500', 'text-white');
+      document.getElementById('f-view-default').classList.add('bg-gray-300', 'text-gray-800');
+      document.getElementById('f-view-bar').classList.add('tab-btn-active');
+      document.getElementById('f-view-default').classList.remove('tab-btn-active');
+
+      updateFreqBarGraph();
+    });
+
+    window.emotionSortDirection = 'desc';
+
+    // 버튼 클릭 시 정렬 방식 변경
+    document.getElementById('sort-asc').addEventListener('click', () => {
+      window.emotionSortDirection = 'asc';
+      updateEmotionBars();
+    });
+
+    document.getElementById('sort-desc').addEventListener('click', () => {
+      window.emotionSortDirection = 'desc';
+      updateEmotionBars();
+    });
+
+    // 긍정 비율 정렬 버튼
+    document.getElementById('sort-pos-asc').addEventListener('click', () => {
+    window.barSortDirection.positive = 'asc';
+    updateBarGraphFromSelection();
+    });
+    document.getElementById('sort-pos-desc').addEventListener('click', () => {
+    window.barSortDirection.positive = 'desc';
+    updateBarGraphFromSelection();
+    });
+
+    // 빈도 정렬 버튼
+    document.getElementById('sort-freq-asc').addEventListener('click', () => {
+    window.barSortDirection.frequency = 'asc';
+    updateFreqBarGraph();
+    });
+    document.getElementById('sort-freq-desc').addEventListener('click', () => {
+    window.barSortDirection.frequency = 'desc';
+    updateFreqBarGraph();
+    });
+    </script>
+    <script>
+    // 챗봇 관련 함수
+    // document.getElementById('chatbot-send').addEventListener('click', sendMessage);
+
+    // async function sendMessage() {
+    //   const input = document.getElementById('chatbot-input');  // ✅ 올바른 ID
+    //   const text = input.value.trim();
+    //   if (!text) return;
+
+    //   addMessage('user', text);
+    //   input.value = '';
+
+    //   try {
+    //     const res = await fetch('http://localhost:5000/api/chat', {
+    //       method: 'POST',
+    //       headers: { 'Content-Type': 'application/json' },
+    //       body: JSON.stringify({ question: text })
+    //     });
+    //     const data = await res.json();
+    //     addMessage('bot', data.answer);
+    //   } catch (e) {
+    //     addMessage('bot', '서버와 연결할 수 없습니다.');
+    //   }
+    // }
+    // document.getElementById('chatbot-input').addEventListener('keydown', function (e) {
+    //   if (e.key === 'Enter') {
+    //     e.preventDefault(); // 폼 제출 등의 기본 동작 방지
+    //     sendMessage();
+    //   }
+    // });
+
+
+    // function addMessage(sender, text) {
+    //   const chat = document.getElementById('chat');
+    //   const div = document.createElement('div');
+    //   div.className = sender === 'user' ? 'user text-right text-blue-600' : 'bot text-left text-green-600';
+    //   div.innerText = text;
+    //   chat.appendChild(div);
+    //   chat.scrollTop = chat.scrollHeight;
+    // }
+    document.getElementById('chatbot-send').addEventListener('click', sendMessage);
+
+    async function sendMessage() {
+      const input = document.getElementById('chatbot-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      addMessage('user', text);
+      input.value = '';
+
+      const chat = document.getElementById('chat');
+      const botDiv = document.createElement('div');
+      botDiv.className = 'bot text-left text-green-600';
+      chat.appendChild(botDiv);
+
+      try {
+        const response = await fetch('http://localhost:5000/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: text })
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+
+        let done = false;
+        while (!done) {
+          const { value, done: doneReading } = await reader.read();
+          done = doneReading;
+          const chunkValue = decoder.decode(value, { stream: true });
+          botDiv.innerText += chunkValue;
+          chat.scrollTop = chat.scrollHeight;
+        }
+
+      } catch (e) {
+        botDiv.innerText = '❌ 서버와 연결할 수 없습니다.';
+      }
+    }
+
+    document.getElementById('chatbot-input').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    function addMessage(sender, text) {
+      const chat = document.getElementById('chat');
+      const div = document.createElement('div');
+      div.className = sender === 'user' ? 'user text-right text-blue-600' : 'bot text-left text-green-600';
+      div.innerText = text;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+    </script>
+
+    <script>
+    // async function fetchAISummary() {
+    //   const selectedLeafs = Array.from(document.querySelectorAll('button.selected[data-is-leaf="true"]'))
+    //     .map(btn => btn.textContent.trim());
+
+    //   if (selectedLeafs.length === 0) {
+    //     document.getElementById('ai-summary-content').textContent = "선택된 항목이 없습니다.";
+    //     return;
+    //   }
+
+    //   try {
+    //     const res = await fetch('http://localhost:5000/api/compare-policies', {
+    //       method: 'POST',
+    //       headers: { 'Content-Type': 'application/json' },
+    //       body: JSON.stringify({ policies: selectedLeafs })
+    //     });
+
+    //     if (!res.ok) throw new Error('서버 오류');
+
+    //     const data = await res.json();
+    //     document.getElementById('ai-summary-content').textContent = data.summary || "요약을 불러오는 데 실패했습니다.";
+    //   } catch (err) {
+    //     console.error("LLM 요약 실패:", err);
+    //     document.getElementById('ai-summary-content').textContent = "AI 요약을 불러오는 중 오류가 발생했습니다.";
+    //   }
+    // }
+    async function fetchAISummary() {
+      const selectedLeafs = Array.from(document.querySelectorAll('button.selected[data-is-leaf="true"]'))
+        .map(btn => btn.textContent.trim());
+
+      const summaryDiv = document.getElementById('ai-summary-content');
+      summaryDiv.textContent = ''; // 초기화
+
+      if (selectedLeafs.length === 0) {
+        summaryDiv.textContent = "선택된 항목이 없습니다.";
+        return;
+      }
+
+      try {
+        const response = await fetch('http://localhost:5000/api/compare-policies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ policies: selectedLeafs })
+        });
+
+        if (!response.ok) throw new Error('서버 오류');
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+
+        let done = false;
+        while (!done) {
+          const { value, done: doneReading } = await reader.read();
+          done = doneReading;
+          const chunkValue = decoder.decode(value, { stream: true });
+          summaryDiv.textContent += chunkValue;
+        }
+
+      } catch (err) {
+        console.error("LLM 요약 실패:", err);
+        summaryDiv.textContent = "AI 요약을 불러오는 중 오류가 발생했습니다.";
+      }
+    }
+
+    </script>
+
+
+
+</body>
+</html>
